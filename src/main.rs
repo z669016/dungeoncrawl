@@ -50,7 +50,10 @@ impl GameState for State {
         ctx.cls();
         ctx.set_active_console(PLAYER_LEVEL);
         ctx.cls();
+
         self.player.update(ctx, &self.map, &mut self.camera);
+        self.camera.adjust();
+
         self.map.render(ctx, &self.camera);
         self.player.render(ctx, &self.camera);
     }
