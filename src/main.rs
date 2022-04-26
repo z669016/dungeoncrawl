@@ -2,11 +2,16 @@ extern crate core;
 
 mod map;
 mod map_builder;
-mod player;
 mod camera;
+mod components;
+mod spawner;
+mod systems;
 
 mod prelude {
     pub use bracket_lib::prelude::*;
+    pub use legion::*;
+    pub use legion::world::SubWorld;
+    pub use legion::systems::CommandBuffer;
 
     pub const SCREEN_WIDTH: i32 = 80;
     pub const SCREEN_HEIGHT: i32 = 50;
@@ -14,48 +19,61 @@ mod prelude {
     pub const DISPLAY_WIDTH: i32 = SCREEN_WIDTH / 2;
     pub const DISPLAY_HEIGHT: i32 = SCREEN_HEIGHT / 2;
 
-    pub const BOARD_LEVEL: usize = 0;
-    pub const PLAYER_LEVEL: usize = 1;
+    pub const MAP_LAYER: usize = 0;
+    pub const PLAYER_LAYER: usize = 1;
+
+    pub const MAP_ORDER: usize = 0;
+    pub const ENTITY_ORDER: usize = 5000;
 
     pub use crate::map::*;
     pub use crate::map_builder::*;
-    pub use crate::player::*;
     pub use crate::camera::*;
+    pub use crate::components::*;
+    pub use crate::spawner::*;
+    pub use crate::systems::*;
 }
 
 use prelude::*;
 
 struct State {
-    map: Map,
-    player: Player,
-    camera: Camera,
+    ecs: World,
+    resources: Resources,
+    systems: Schedule,
 }
 
 impl State {
     fn new() -> Self {
+        let mut ecs = World::default();
+        let mut resources = Resources::default();
         let mut rng = RandomNumberGenerator::new();
         let builder = MapBuilder::new(&mut rng);
 
+        let mut camera = Camera::new(builder.player_start);
+        camera.adjust();
+
+        resources.insert(builder.map);
+        resources.insert(camera);
+
+        spawn_player(&mut ecs, builder.player_start);
+
         Self {
-            map: builder.map,
-            player: Player::new(builder.player_start),
-            camera: Camera::new(builder.player_start),
+            ecs,
+            resources,
+            systems: build_scheduler(),
         }
     }
 }
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut BTerm) {
-        ctx.set_active_console(BOARD_LEVEL);
+        ctx.set_active_console(MAP_LAYER);
         ctx.cls();
-        ctx.set_active_console(PLAYER_LEVEL);
+        ctx.set_active_console(PLAYER_LAYER);
         ctx.cls();
 
-        self.player.update(ctx, &self.map, &mut self.camera);
-        self.camera.adjust();
-
-        self.map.render(ctx, &self.camera);
-        self.player.render(ctx, &self.camera);
+        self.resources.insert(ctx.key);
+        self.systems.execute(&mut self.ecs, &mut self.resources);
+        render_draw_buffer(ctx).expect("Render error");
     }
 }
 
