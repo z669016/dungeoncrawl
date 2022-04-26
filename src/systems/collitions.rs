@@ -1,0 +1,16 @@
+use crate::prelude::*;
+
+#[system]
+#[read_component(Point)]
+#[read_component(Player)]
+#[read_component(Enemy)]
+pub fn collitions(ecs: &mut SubWorld, commands: &mut CommandBuffer) {
+    let mut player_pos = Point::zero(); // ensure we have a player position
+    let mut players = <&Point>::query().filter(component::<Player>());
+    players.iter(ecs).for_each(|pos| player_pos = *pos);
+
+    let mut enemies = <(Entity, &Point)>::query().filter(component::<Enemy>());
+    enemies.iter(ecs)
+        .filter(|(_, pos)| player_pos == **pos)
+        .for_each(|(entity, _)| commands.remove(*entity));
+}

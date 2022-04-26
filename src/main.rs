@@ -56,6 +56,15 @@ impl State {
 
         spawn_player(&mut ecs, builder.player_start);
 
+        // Spawn a monster in every room except for the first room
+        // as the first room already contains the player (in the center)
+        builder.rooms.iter()
+            .skip(1)
+            .map(|room| room.center())
+            .for_each(|room_center| {
+                spawn_enemies(&mut ecs, &mut rng, room_center)
+            });
+
         Self {
             ecs,
             resources,
